@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pedidos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-brand">⚙️ Painel Operacional</div>
+    <div class="navbar-links">
+        <a href="index.html" class="nav-link">🏠 Início</a>
+        <a href="pedidos.html" class="nav-link active">📦 Pedidos</a>
+        <a href="qrcode.html" class="nav-link">🔲 QR Code</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>Controle de Pedidos</h1>
+
+    <!-- FORMULÁRIO -->
+    <div class="card-op">
+        <h2>Novo Pedido</h2>
+        <div class="linha" style="flex-wrap:wrap;">
+            <div class="grupo">
+                <label>Nº Pedido</label>
+                <input type="text" id="f-pedido" placeholder="Ex: 12345" />
+            </div>
+            <div class="grupo">
+                <label>Cliente</label>
+                <input type="text" id="f-cliente" placeholder="Nome do cliente" />
+            </div>
+            <div class="grupo">
+                <label>Carga</label>
+                <input type="text" id="f-carga" placeholder="Descrição da carga" />
+            </div>
+            <div class="grupo">
+                <label>Agendamento</label>
+                <input type="date" id="f-agendamento" />
+            </div>
+            <div class="grupo">
+                <label>Cidade</label>
+                <input type="text" id="f-cidade" placeholder="Cidade de destino" />
+            </div>
+            <div class="grupo">
+                <label>Data Carregamento</label>
+                <input type="date" id="f-datacarreg" />
+            </div>
+            <div class="grupo">
+                <label>Status</label>
+                <select id="f-status">
+                    <option value="aguardando">Aguardando Programação</option>
+                    <option value="produzindo">Produzindo</option>
+                    <option value="produzido">Produzido</option>
+                    <option value="doca">Na Doca</option>
+                    <option value="carregado">Carregado</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="adicionarPedido()" style="margin-top:16px;">+ Adicionar Pedido</button>
+    </div>
+
+    <!-- TABELA -->
+    <h2 style="margin-bottom:12px;">
+        Pedidos em Aberto
+        <span id="total-badge" style="background:#3182ce;color:#fff;font-size:13px;padding:2px 10px;border-radius:99px;margin-left:8px;vertical-align:middle;">0</span>
+    </h2>
+
+    <div id="tabela-wrap">
+        <table class="tabela-pedidos">
+            <thead>
+                <tr>
+                    <th>Nº Pedido</th>
+                    <th>Cliente</th>
+                    <th>Carga</th>
+                    <th>Agendamento</th>
+                    <th>Cidade</th>
+                    <th>Dt. Carregamento</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="tabela-body"></tbody>
+        </table>
+        <div id="empty-state">Nenhum pedido cadastrado.</div>
+    </div>
+</div>
+
+<!-- MODAL EDIÇÃO -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <h2 style="color:#2b6cb0;margin-bottom:20px;">Editar Pedido</h2>
+    <div class="linha" style="flex-wrap:wrap;">
+        <div class="grupo"><label>Nº Pedido</label><input type="text" id="m-pedido"/></div>
+        <div class="grupo"><label>Cliente</label><input type="text" id="m-cliente"/></div>
+        <div class="grupo"><label>Carga</label><input type="text" id="m-carga"/></div>
+        <div class="grupo"><label>Agendamento</label><input type="date" id="m-agendamento"/></div>
+        <div class="grupo"><label>Cidade</label><input type="text" id="m-cidade"/></div>
+        <div class="grupo"><label>Data Carregamento</label><input type="date" id="m-datacarreg"/></div>
+        <div class="grupo">
+            <label>Status</label>
+            <select id="m-status">
+                <option value="aguardando">Aguardando Programação</option>
+                <option value="produzindo">Produzindo</option>
+                <option value="produzido">Produzido</option>
+                <option value="doca">Na Doca</option>
+                <option value="carregado">Carregado</option>
+            </select>
+        </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+        <button onclick="fecharModal()" style="background:#e2e8f0;color:#4a5568;width:auto;padding:10px 24px;">Cancelar</button>
+        <button onclick="salvarEdicao()" style="width:auto;padding:10px 24px;">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, update, remove }
+        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBhAtHE0lwpCH_MIlLGzd4iiM-lNAZjKiA",
+        authDomain: "pedidos-empresa-59c1d.firebaseapp.com",
+        databaseURL: "https://pedidos-empresa-59c1d-default-rtdb.firebaseio.com",
+        projectId: "pedidos-empresa-59c1d",
+        storageBucket: "pedidos-empresa-59c1d.firebasestorage.app",
+        messagingSenderId: "21893151339",
+        appId: "1:21893151339:web:a6a1f995eeba30f0278f2e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+    const pedidosRef = ref(db, "pedidos");
+
+    const statusMap = {
+        aguardando: { label: "Aguardando Prog.", cls: "status-aguardando" },
+        produzindo:  { label: "Produzindo",       cls: "status-produzindo"  },
+        produzido:   { label: "Produzido",         cls: "status-produzido"   },
+        doca:        { label: "Na Doca",           cls: "status-doca"        },
+        carregado:   { label: "Carregado",         cls: "status-carregado"   },
+    };
+
+    function formatDate(val) {
+        if (!val) return "—";
+        const [y, m, d] = val.split("-");
+        return `${d}/${m}/${y}`;
+    }
+
+    let dadosEmMemoria = {};
+
+    onValue(pedidosRef, (snapshot) => {
+        dadosEmMemoria = snapshot.val() || {};
+        const tbody = document.getElementById("tabela-body");
+        const empty = document.getElementById("empty-state");
+        const badge = document.getElementById("total-badge");
+        tbody.innerHTML = "";
+
+        const data = snapshot.val();
+        if (!data) {
+            empty.style.display = "block";
+            badge.textContent = "0";
+            return;
+        }
+
+        empty.style.display = "none";
+        const entries = Object.entries(data);
+        badge.textContent = entries.length;
+
+        entries.forEach(([id, p]) => {
+            const s = statusMap[p.status] || statusMap["aguardando"];
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td><strong>${p.pedido || "—"}</strong></td>
+                <td>${p.cliente || "—"}</td>
+                <td>${p.carga || "—"}</td>
+                <td>${formatDate(p.agendamento)}</td>
+                <td>${p.cidade || "—"}</td>
+                <td>${formatDate(p.datacarreg)}</td>
+                <td><span class="status ${s.cls}">${s.label}</span></td>
+                <td>
+                    <button class="btn-acao" onclick="abrirModal('${id}')">✏️ Editar</button>
+                    <button class="btn-acao btn-del" onclick="excluirPedido('${id}')">🗑️</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    });
+
+    window.adicionarPedido = function () {
+        const pedido     = document.getElementById("f-pedido").value.trim();
+        const cliente    = document.getElementById("f-cliente").value.trim();
+        const carga      = document.getElementById("f-carga").value.trim();
+        const agendamento = document.getElementById("f-agendamento").value;
+        const cidade     = document.getElementById("f-cidade").value.trim();
+        const datacarreg = document.getElementById("f-datacarreg").value;
+        const status     = document.getElementById("f-status").value;
+
+        if (!pedido || !cliente) { showToast("⚠️ Preencha Nº Pedido e Cliente."); return; }
+
+        push(pedidosRef, { pedido, cliente, carga, agendamento, cidade, datacarreg, status })
+            .then(() => {
+                showToast("✅ Pedido adicionado!");
+                ["f-pedido","f-cliente","f-carga","f-agendamento","f-cidade","f-datacarreg"]
+                    .forEach(id => document.getElementById(id).value = "");
+                document.getElementById("f-status").value = "aguardando";
+            })
+            .catch(() => showToast("❌ Erro ao salvar."));
+    };
+
+    let editandoId = null;
+
+    window.abrirModal = function (id) {
+        editandoId = id;
+        const p = dadosEmMemoria[id];
+        if (!p) return;
+        document.getElementById("m-pedido").value      = p.pedido || "";
+        document.getElementById("m-cliente").value     = p.cliente || "";
+        document.getElementById("m-carga").value       = p.carga || "";
+        document.getElementById("m-agendamento").value = p.agendamento || "";
+        document.getElementById("m-cidade").value      = p.cidade || "";
+        document.getElementById("m-datacarreg").value  = p.datacarreg || "";
+        document.getElementById("m-status").value      = p.status || "aguardando";
+        document.getElementById("modal").classList.add("open");
+    };
+
+    window.fecharModal = function () {
+        document.getElementById("modal").classList.remove("open");
+        editandoId = null;
+    };
+
+    window.salvarEdicao = function () {
+        if (!editandoId) return;
+        const atualizado = {
+            pedido:      document.getElementById("m-pedido").value.trim(),
+            cliente:     document.getElementById("m-cliente").value.trim(),
+            carga:       document.getElementById("m-carga").value.trim(),
+            agendamento: document.getElementById("m-agendamento").value,
+            cidade:      document.getElementById("m-cidade").value.trim(),
+            datacarreg:  document.getElementById("m-datacarreg").value,
+            status:      document.getElementById("m-status").value,
+        };
+        update(ref(db, `pedidos/${editandoId}`), atualizado)
+            .then(() => { showToast("✅ Atualizado!"); fecharModal(); })
+            .catch(() => showToast("❌ Erro ao atualizar."));
+    };
+
+    window.excluirPedido = function (id) {
+        if (!confirm("Excluir este pedido?")) return;
+        remove(ref(db, `pedidos/${id}`))
+            .then(() => showToast("🗑️ Removido."))
+            .catch(() => showToast("❌ Erro ao remover."));
+    };
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 3000);
+    }
+</script>
+
+</body>
+</html>
