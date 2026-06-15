@@ -194,12 +194,12 @@
 
     window.adicionarPedido = function () {
         const pedido     = document.getElementById("f-pedido").value.trim();
-        const cliente    = document.getElementById("f-cliente").value.trim();
+        const cliente    = document.getElementById("f-cliente").value.trim().toUpperCase;
         const carga      = document.getElementById("f-carga").value.trim();
         const agendamento = document.getElementById("f-agendamento").value;
-        const cidade     = document.getElementById("f-cidade").value.trim();
+        const cidade     = document.getElementById("f-cidade").value.trim().toUpperCase;
         const datacarreg = document.getElementById("f-datacarreg").value;
-        const status     = document.getElementById("f-status").value;
+        const status     = document.getElementById("f-status").value.toUpperCase;
 
         if (!pedido || !cliente) { showToast("⚠️ Preencha Nº Pedido e Cliente."); return; }
 
