@@ -83,7 +83,13 @@
         }
 
         empty.style.display = "none";
-        Object.values(data).forEach(p => {
+        Object.values(data)
+          .sort((a, b) => {
+              if (!a.datacarreg) return 1;
+              if (!b.datacarreg) return -1;
+              return a.datacarreg.localeCompare(b.datacarreg);
+          })
+          .forEach(p => {
             const s = statusMap[p.status] || statusMap["aguardando"];
             const tr = document.createElement("tr");
             tr.innerHTML = `
